@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: billing-service-config
+  labels:
+    app.kubernetes.io/name: billing-service
+    app.kubernetes.io/part-of: fiap-tech-challenge
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  SERVICE_NAME: "billing-service"
+  SERVICE_VERSION: "0.1.0"
+  LOG_LEVEL: "info"
+  LOG_FORMAT: "json"
+  JWT_ISSUER: "fiap-tech-challenge-auth-function"
+  JWT_AUDIENCE: "fiap-tech-challenge-api"
+  JWT_REQUIRED_CUSTOMER_STATUS: "ACTIVE"
+  MONGODB_SERVER_SELECTION_TIMEOUT_MS: "5000"
+  METRICS_ENABLED: "true"
+  MESSAGING_ENABLED: "true"
+  RABBITMQ_MAX_RETRIES: "3"
+  CONSUMED_MESSAGE_LEASE_MS: "300000"
+  PAYMENT_REFUND_LEASE_MS: "300000"
+  MERCADO_PAGO_ENVIRONMENT: "test"
+  MERCADO_PAGO_NOTIFICATION_URL: "https://replace-with-public-host/webhooks/mercado-pago"
+  MERCADO_PAGO_SUCCESS_URL: "https://replace-with-public-host/payments/success"
+  MERCADO_PAGO_FAILURE_URL: "https://replace-with-public-host/payments/failure"
+  MERCADO_PAGO_PENDING_URL: "https://replace-with-public-host/payments/pending"

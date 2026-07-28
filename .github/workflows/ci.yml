@@ -1,0 +1,84 @@
+name: Billing Service CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - homologation
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      SERVICE_NAME: billing-service
+      SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+      SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Unit tests with coverage
+        run: npm run test:cov
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: billing-service-coverage
+          path: coverage
+
+      - name: Build container image
+        run: docker build -t "${SERVICE_NAME}:${GITHUB_SHA}" .
+
+      - name: Render Kubernetes manifests
+        run: kubectl kustomize k8s
+
+      - name: Require Sonar configuration outside fork pull requests
+        if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
+        run: |
+          test -n "${SONAR_TOKEN}" || { echo "SONAR_TOKEN is required."; exit 1; }
+          test -n "${SONAR_HOST_URL}" || { echo "SONAR_HOST_URL is required."; exit 1; }
+          test -n "${SONAR_PROJECT_KEY}" || { echo "SONAR_PROJECT_KEY is required."; exit 1; }
+
+      - name: Skip Sonar scan for fork pull requests without secrets
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
+        run: echo "Skipping Sonar scan for fork pull request because repository secrets are unavailable."
+
+      - name: Run Sonar scan
+        if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
+        uses: SonarSource/sonarqube-scan-action@v6
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+        with:
+          args: >
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }}
+            -Dsonar.projectName=billing-service
+
+      - name: Wait for Sonar quality gate
+        if: ${{ github.event_name != 'pull_request' || !github.event.pull_request.head.repo.fork }}
+        uses: SonarSource/sonarqube-quality-gate-action@v1.2.0
+        timeout-minutes: 10
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}

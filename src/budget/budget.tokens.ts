@@ -1,0 +1,1 @@
+export const BUDGET_REPOSITORY = Symbol("BUDGET_REPOSITORY");

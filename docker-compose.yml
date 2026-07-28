@@ -1,0 +1,62 @@
+services:
+  mongo:
+    image: mongo:8.0
+    environment:
+      MONGO_INITDB_DATABASE: billing
+    ports:
+      - "${MONGODB_PORT:-27017}:27017"
+    volumes:
+      - billing_mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  billing-service:
+    build:
+      context: .
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3000
+      SERVICE_NAME: ${SERVICE_NAME:-billing-service}
+      SERVICE_VERSION: ${SERVICE_VERSION:-0.1.0}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      JWT_ISSUER: ${JWT_ISSUER:-fiap-tech-challenge-auth-function}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-fiap-tech-challenge-api}
+      JWT_REQUIRED_CUSTOMER_STATUS: ${JWT_REQUIRED_CUSTOMER_STATUS:-ACTIVE}
+      MONGODB_URI: mongodb://mongo:27017/billing
+      MONGODB_SERVER_SELECTION_TIMEOUT_MS: ${MONGODB_SERVER_SELECTION_TIMEOUT_MS:-5000}
+      METRICS_ENABLED: ${METRICS_ENABLED:-true}
+      MESSAGING_ENABLED: ${MESSAGING_ENABLED:-false}
+      RABBITMQ_URL: ${RABBITMQ_URL:-}
+      RABBITMQ_MAX_RETRIES: ${RABBITMQ_MAX_RETRIES:-3}
+      PAYMENT_REFUND_LEASE_MS: ${PAYMENT_REFUND_LEASE_MS:-300000}
+      MERCADO_PAGO_ENVIRONMENT: ${MERCADO_PAGO_ENVIRONMENT:-test}
+      MERCADO_PAGO_TEST_ACCESS_TOKEN: ${MERCADO_PAGO_TEST_ACCESS_TOKEN:?set MERCADO_PAGO_TEST_ACCESS_TOKEN}
+      MERCADO_PAGO_TEST_WEBHOOK_SECRET: ${MERCADO_PAGO_TEST_WEBHOOK_SECRET:?set MERCADO_PAGO_TEST_WEBHOOK_SECRET}
+      MERCADO_PAGO_NOTIFICATION_URL: ${MERCADO_PAGO_NOTIFICATION_URL:?set MERCADO_PAGO_NOTIFICATION_URL}
+      MERCADO_PAGO_SUCCESS_URL: ${MERCADO_PAGO_SUCCESS_URL:?set MERCADO_PAGO_SUCCESS_URL}
+      MERCADO_PAGO_FAILURE_URL: ${MERCADO_PAGO_FAILURE_URL:?set MERCADO_PAGO_FAILURE_URL}
+      MERCADO_PAGO_PENDING_URL: ${MERCADO_PAGO_PENDING_URL:?set MERCADO_PAGO_PENDING_URL}
+    ports:
+      - "${PORT:-3000}:3000"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:3000/health >/dev/null 2>&1 || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+volumes:
+  billing_mongo_data:
