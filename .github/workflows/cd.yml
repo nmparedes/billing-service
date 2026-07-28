@@ -14,20 +14,17 @@ jobs:
         github.event.workflow_run.conclusion == 'success' &&
         github.event.workflow_run.event == 'push' &&
         github.event.workflow_run.head_repository.full_name == github.repository &&
-        (
-          github.event.workflow_run.head_branch == 'main' ||
-          github.event.workflow_run.head_branch == 'homologation'
-        )
+        github.event.workflow_run.head_branch == 'homologation'
       }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-    environment: ${{ github.event.workflow_run.head_branch == 'main' && 'production' || 'homologation' }}
+    environment: homologation
     env:
       SERVICE_NAME: billing-service
       IMAGE_SHA: ghcr.io/${{ github.repository_owner }}/billing-service:${{ github.event.workflow_run.head_sha }}
-      IMAGE_CHANNEL: ghcr.io/${{ github.repository_owner }}/billing-service:${{ github.event.workflow_run.head_branch == 'main' && 'production' || 'homologation' }}
+      IMAGE_CHANNEL: ghcr.io/${{ github.repository_owner }}/billing-service:homologation
       K8S_NAMESPACE: ${{ vars.K8S_NAMESPACE }}
       KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
     steps:

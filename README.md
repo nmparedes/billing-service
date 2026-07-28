@@ -153,6 +153,12 @@ CD is configured for:
 This README documents pipeline configuration only. It does not claim a hosted
 deployment was executed from this workspace.
 
+Hosted deploy inputs currently expected by the pipeline:
+
+- `K8S_NAMESPACE`: manual GitHub Environment variable
+- `KUBECONFIG_B64`: manual GitHub secret because the Kubernetes runtime target is not Terraform-managed yet
+- MongoDB connection values, JWT secrets, broker settings and Mercado Pago credentials: still injected manually from the reviewed infrastructure provisioning outputs
+
 ## Kubernetes
 
 This repository contains service-local manifests under `k8s/`:
