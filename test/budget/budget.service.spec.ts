@@ -11,6 +11,7 @@ describe("BudgetService", () => {
   beforeEach(() => {
     repository = {
       findById: jest.fn(),
+      findAll: jest.fn(),
       findBySagaAndOrder: jest.fn(),
       createIfAbsent: jest.fn(async (budget) => budget),
       save: jest.fn(async (budget) => budget),
@@ -48,6 +49,38 @@ describe("BudgetService", () => {
     await expect(service.findById("missing")).rejects.toMatchObject({
       code: "BUDGET_NOT_FOUND",
     } as DomainException);
+  });
+
+  it("lists budgets with filters and pagination", async () => {
+    repository.findAll.mockResolvedValue({
+      data: [readyBudget("budget-list-1")],
+      meta: {
+        total: 1,
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+      },
+    });
+
+    const response = await service.list({
+      orderNumber: "OS-20260118-0001",
+      page: 1,
+      limit: 10,
+    });
+
+    expect(repository.findAll).toHaveBeenCalledWith({
+      orderId: undefined,
+      orderNumber: "OS-20260118-0001",
+      status: undefined,
+      customerDocument: undefined,
+      page: 1,
+      limit: 10,
+    });
+    expect(response.meta.total).toBe(1);
+    expect(response.data[0]).toMatchObject({
+      id: "budget-list-1",
+      orderNumber: "OS-20260118-0001",
+    });
   });
 
   it("approves and rejects budgets through the repository", async () => {

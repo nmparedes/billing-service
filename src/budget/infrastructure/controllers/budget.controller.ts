@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -17,9 +18,11 @@ import {
 } from "@nestjs/swagger";
 import { BudgetResponseDto } from "../../application/dto/budget-response.dto";
 import { CreateBudgetDto } from "../../application/dto/create-budget.dto";
+import { ListBudgetsQueryDto } from "../../application/dto/list-budgets.query.dto";
 import { RejectBudgetDto } from "../../application/dto/reject-budget.dto";
 import { BudgetService } from "../../application/services/budget.service";
 import { BillingEventsService } from "../../../messaging/billing-events.service";
+import { PaginatedResponse } from "../../../common/interfaces/paginated-response.interface";
 
 @ApiTags("budgets")
 @ApiBearerAuth()
@@ -37,6 +40,15 @@ export class BudgetController {
   @ApiCreatedResponse({ type: BudgetResponseDto })
   create(@Body() dto: CreateBudgetDto): Promise<BudgetResponseDto> {
     return this.budgetService.create(dto);
+  }
+
+  @Get()
+  @ApiOperation({ summary: "List budgets with optional filters." })
+  @ApiOkResponse({ description: "Paginated budgets list." })
+  findAll(
+    @Query() query: ListBudgetsQueryDto,
+  ): Promise<PaginatedResponse<BudgetResponseDto>> {
+    return this.budgetService.list(query);
   }
 
   @Get(":id")
