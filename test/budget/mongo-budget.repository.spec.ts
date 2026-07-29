@@ -60,6 +60,79 @@ describe("MongoBudgetRepository", () => {
       { upsert: true, returnDocument: "after" },
     );
   });
+
+  it("lists budgets using filters and pagination", async () => {
+    const budget = readyBudget();
+    const document = {
+      _id: budget.id,
+      sagaId: budget.sagaId,
+      orderId: budget.orderId,
+      orderNumber: budget.orderNumber,
+      customer: budget.customer,
+      vehicle: budget.vehicle,
+      serviceItems: budget.serviceItems,
+      partItems: budget.partItems,
+      serviceSubtotal: budget.serviceSubtotal,
+      partSubtotal: budget.partSubtotal,
+      totalAmount: budget.totalAmount,
+      status: budget.status,
+      requestedAt: budget.requestedAt,
+      createdAt: budget.createdAt,
+      approvalRequestedAt: budget.approvalRequestedAt,
+      expiresAt: budget.expiresAt,
+      updatedAt: budget.updatedAt,
+    };
+    const cursor = {
+      sort: jest.fn().mockReturnThis(),
+      skip: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      toArray: jest.fn().mockResolvedValue([document]),
+    };
+    const collection = {
+      createIndex: jest.fn().mockResolvedValue("budget_saga_order_unique"),
+      find: jest.fn().mockReturnValue(cursor),
+      countDocuments: jest.fn().mockResolvedValue(1),
+    };
+    const client = {
+      db: jest
+        .fn()
+        .mockReturnValue({ collection: jest.fn().mockReturnValue(collection) }),
+    } as unknown as MongoClient;
+    const repository = new MongoBudgetRepository(client);
+
+    const result = await repository.findAll({
+      orderId: "order-1",
+      orderNumber: "OS-20260118-0001",
+      status: budget.status,
+      customerDocument: "52998224725",
+      page: 2,
+      limit: 5,
+    });
+
+    expect(collection.find).toHaveBeenCalledWith({
+      orderId: "order-1",
+      orderNumber: "OS-20260118-0001",
+      status: budget.status,
+      "customer.customerDocument": "52998224725",
+    });
+    expect(cursor.sort).toHaveBeenCalledWith({
+      requestedAt: -1,
+      createdAt: -1,
+      _id: -1,
+    });
+    expect(cursor.skip).toHaveBeenCalledWith(5);
+    expect(cursor.limit).toHaveBeenCalledWith(5);
+    expect(result.meta).toEqual({
+      total: 1,
+      page: 2,
+      limit: 5,
+      totalPages: 1,
+    });
+    expect(result.data[0]).toMatchObject({
+      id: budget.id,
+      orderNumber: budget.orderNumber,
+    });
+  });
 });
 
 function readyBudget(): Budget {

@@ -1,11 +1,13 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { DomainException } from "../../../common/exceptions/domain.exception";
+import { PaginatedResponse } from "../../../common/interfaces/paginated-response.interface";
 import { BUDGET_REPOSITORY } from "../../budget.tokens";
 import { Budget } from "../../domain/entities/budget.entity";
 import { BudgetStatus } from "../../domain/enums/budget-status.enum";
 import type { BudgetRepository } from "../../domain/repositories/budget.repository.interface";
 import { BudgetResponseDto } from "../dto/budget-response.dto";
 import { CreateBudgetDto } from "../dto/create-budget.dto";
+import { ListBudgetsQueryDto } from "../dto/list-budgets.query.dto";
 import { RejectBudgetDto } from "../dto/reject-budget.dto";
 
 @Injectable()
@@ -41,6 +43,26 @@ export class BudgetService {
 
   async findById(id: string): Promise<BudgetResponseDto> {
     return this.toResponseDto(await this.getBudget(id));
+  }
+
+  async list(
+    query: ListBudgetsQueryDto,
+  ): Promise<PaginatedResponse<BudgetResponseDto>> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const result = await this.budgetRepository.findAll({
+      orderId: query.orderId?.trim(),
+      orderNumber: query.orderNumber?.trim(),
+      status: query.status,
+      customerDocument: query.customerDocument?.trim(),
+      page,
+      limit,
+    });
+
+    return {
+      data: result.data.map((budget) => this.toResponseDto(budget)),
+      meta: result.meta,
+    };
   }
 
   async approve(id: string): Promise<BudgetResponseDto> {

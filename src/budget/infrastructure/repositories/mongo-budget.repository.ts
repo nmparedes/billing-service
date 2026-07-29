@@ -1,10 +1,12 @@
 import { Inject, Injectable } from "@nestjs/common";
-import { Collection, MongoClient } from "mongodb";
+import { Collection, Filter, MongoClient } from "mongodb";
 import { MONGO_CLIENT } from "../../../database/database.constants";
+import { PaginatedResponse } from "../../../common/interfaces/paginated-response.interface";
 import {
   Budget,
   RestoreBudgetProps,
 } from "../../domain/entities/budget.entity";
+import { BudgetListFilters } from "../../domain/repositories/budget-list-filters.interface";
 import type { BudgetRepository } from "../../domain/repositories/budget.repository.interface";
 
 interface BudgetDocument extends Omit<RestoreBudgetProps, "id"> {
@@ -18,6 +20,46 @@ export class MongoBudgetRepository implements BudgetRepository {
   async findById(id: string): Promise<Budget | null> {
     const document = await (await this.collection()).findOne({ _id: id });
     return document ? this.toDomain(document) : null;
+  }
+
+  async findAll(
+    filters: BudgetListFilters,
+  ): Promise<PaginatedResponse<Budget>> {
+    const query: Filter<BudgetDocument> = {};
+    if (filters.orderId) {
+      query.orderId = filters.orderId;
+    }
+    if (filters.orderNumber) {
+      query.orderNumber = filters.orderNumber;
+    }
+    if (filters.status) {
+      query.status = filters.status;
+    }
+    if (filters.customerDocument) {
+      query["customer.customerDocument"] = filters.customerDocument;
+    }
+
+    const collection = await this.collection();
+    const cursor = collection
+      .find(query)
+      .sort({ requestedAt: -1, createdAt: -1, _id: -1 })
+      .skip((filters.page - 1) * filters.limit)
+      .limit(filters.limit);
+
+    const [documents, total] = await Promise.all([
+      cursor.toArray(),
+      collection.countDocuments(query),
+    ]);
+
+    return {
+      data: documents.map((document) => this.toDomain(document)),
+      meta: {
+        total,
+        page: filters.page,
+        limit: filters.limit,
+        totalPages: total === 0 ? 0 : Math.ceil(total / filters.limit),
+      },
+    };
   }
 
   async findBySagaAndOrder(
