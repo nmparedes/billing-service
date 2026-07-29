@@ -17,6 +17,9 @@ async function bootstrap(): Promise<void> {
     "billing-service",
   );
   const serviceVersion = configService.get<string>("SERVICE_VERSION", "0.1.0");
+  const swaggerBasePath = normalizeSwaggerBasePath(
+    configService.get<string>("SWAGGER_BASE_PATH"),
+  );
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -27,20 +30,36 @@ async function bootstrap(): Promise<void> {
   );
   app.useGlobalFilters(new DomainExceptionFilter(), new HttpExceptionFilter());
 
-  const swaggerConfig = new DocumentBuilder()
+  const swaggerConfigBuilder = new DocumentBuilder()
     .setTitle(serviceName)
     .setDescription("Phase 4 microservice API")
     .setVersion(serviceVersion)
-    .addBearerAuth()
-    .build();
+    .addBearerAuth();
+
+  if (swaggerBasePath) {
+    swaggerConfigBuilder.addServer(swaggerBasePath);
+  }
 
   SwaggerModule.setup(
     "docs",
     app,
-    SwaggerModule.createDocument(app, swaggerConfig),
+    SwaggerModule.createDocument(app, swaggerConfigBuilder.build()),
   );
 
   await app.listen(configService.get<number>("PORT", 3000));
+}
+
+function normalizeSwaggerBasePath(basePath?: string): string | undefined {
+  const trimmedBasePath = basePath?.trim();
+  if (!trimmedBasePath) {
+    return undefined;
+  }
+
+  const prefixedBasePath = trimmedBasePath.startsWith("/")
+    ? trimmedBasePath
+    : `/${trimmedBasePath}`;
+
+  return prefixedBasePath.replace(/\/+$/, "") || undefined;
 }
 
 void bootstrap();
