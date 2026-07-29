@@ -31,6 +31,7 @@ export interface HandleMercadoPagoWebhookInput {
   providerNotificationId?: string;
   providerPaymentId?: string;
   action?: string;
+  usesLegacyTopicQueryFormat?: boolean;
   rawPayload: Record<string, unknown>;
 }
 
@@ -171,6 +172,7 @@ export class PaymentWebhookService {
       signature: input.signature,
       requestId: input.requestId,
       dataId: input.providerPaymentId,
+      allowLegacyTestFallback: input.usesLegacyTopicQueryFormat,
     });
     if (!validSignature) {
       throw new DomainException(

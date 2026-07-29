@@ -225,6 +225,30 @@ describe("PaymentWebhookService", () => {
     expect(paymentRepository.save).toHaveBeenCalledTimes(1);
   });
 
+  it("allows legacy topic/id webhooks to proceed in test mode fallback", async () => {
+    const payment = localPayment();
+    paymentRepository.findByExternalReference.mockResolvedValue(payment);
+    authenticator.validate.mockReturnValue(true);
+
+    await expect(
+      service.handle({
+        ...validInput(),
+        signature: undefined,
+        requestId: undefined,
+        providerNotificationId: providerPaymentId,
+        usesLegacyTopicQueryFormat: true,
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(authenticator.validate).toHaveBeenCalledWith({
+      signature: undefined,
+      requestId: undefined,
+      dataId: providerPaymentId,
+      allowLegacyTestFallback: true,
+    });
+    expect(paymentProvider.getPayment).toHaveBeenCalledWith(providerPaymentId);
+  });
+
   it("marks failures for missing local payments and unavailable providers", async () => {
     paymentRepository.findByExternalReference.mockResolvedValue(null);
 

@@ -3,6 +3,7 @@ export interface PaymentWebhookAuthenticator {
     signature?: string;
     requestId?: string;
     dataId?: string;
+    allowLegacyTestFallback?: boolean;
   }): boolean;
 }
 
