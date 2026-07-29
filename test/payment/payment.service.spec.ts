@@ -15,6 +15,7 @@ describe("PaymentService", () => {
   beforeEach(() => {
     budgetRepository = {
       findById: jest.fn(),
+      findAll: jest.fn(),
       findBySagaAndOrder: jest.fn(),
       createIfAbsent: jest.fn(),
       save: jest.fn(),
