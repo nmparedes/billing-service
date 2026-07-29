@@ -33,6 +33,7 @@ describe("MercadoPagoWebhookController", () => {
       providerNotificationId: "notification-1",
       providerPaymentId: "provider-payment-1",
       action: "payment.updated",
+      usesLegacyTopicQueryFormat: false,
       rawPayload: payload,
     });
   });
@@ -62,6 +63,7 @@ describe("MercadoPagoWebhookController", () => {
       providerNotificationId: "request-2",
       providerPaymentId: "provider-payment-2",
       action: "payment.updated",
+      usesLegacyTopicQueryFormat: true,
       rawPayload: {},
     });
   });

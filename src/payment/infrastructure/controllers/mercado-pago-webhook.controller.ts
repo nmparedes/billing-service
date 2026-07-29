@@ -109,6 +109,11 @@ export class MercadoPagoWebhookController {
       providerNotificationId,
       providerPaymentId,
       action,
+      usesLegacyTopicQueryFormat:
+        input.type === undefined &&
+        input.topic === "payment" &&
+        input.queryDataId === undefined &&
+        input.queryId !== undefined,
       rawPayload: payload as Record<string, unknown>,
     };
   }

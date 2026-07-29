@@ -14,10 +14,22 @@ export class MercadoPagoPaymentWebhookAuthenticator implements PaymentWebhookAut
     signature?: string;
     requestId?: string;
     dataId?: string;
+    allowLegacyTestFallback?: boolean;
   }): boolean {
+    const configuration = this.configuration.getActiveConfiguration();
+
+    if (
+      input.allowLegacyTestFallback &&
+      configuration.environment === "test"
+    ) {
+      return true;
+    }
+
     return this.validator.validate({
-      ...input,
-      secret: this.configuration.getActiveConfiguration().webhookSecret,
+      signature: input.signature,
+      requestId: input.requestId,
+      dataId: input.dataId,
+      secret: configuration.webhookSecret,
     });
   }
 }
