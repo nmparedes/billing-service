@@ -87,11 +87,20 @@ describe("MongoPaymentRepository", () => {
     expect(collection.updateOne).toHaveBeenCalledWith(
       expect.objectContaining({
         _id: payment.id,
-        providerPreferenceId: { $exists: false },
-        $or: [
-          { preferenceCreationInProgress: { $ne: true } },
-          { preferenceCreationLeaseExpiresAt: null },
-          { preferenceCreationLeaseExpiresAt: { $lte: now } },
+        $and: [
+          {
+            $or: [
+              { providerPreferenceId: null },
+              { providerPreferenceId: { $exists: false } },
+            ],
+          },
+          {
+            $or: [
+              { preferenceCreationInProgress: { $ne: true } },
+              { preferenceCreationLeaseExpiresAt: null },
+              { preferenceCreationLeaseExpiresAt: { $lte: now } },
+            ],
+          },
         ],
       }),
       expect.objectContaining({

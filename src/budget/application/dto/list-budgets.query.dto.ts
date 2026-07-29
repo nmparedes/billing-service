@@ -19,7 +19,7 @@ export class ListBudgetsQueryDto {
   @IsEnum(BudgetStatus)
   status?: BudgetStatus;
 
-  @ApiPropertyOptional({ example: "08844650983" })
+  @ApiPropertyOptional({ example: "11144477735" })
   @IsOptional()
   @IsString()
   customerDocument?: string;

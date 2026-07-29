@@ -27,9 +27,18 @@ type NullableRefundString =
 
 interface PaymentDocument extends Omit<
   RestorePaymentProps,
-  "id" | NullableRefundString
+  | "id"
+  | NullableRefundString
+  | "providerPreferenceId"
+  | "providerPaymentId"
+  | "providerStatus"
+  | "checkoutUrl"
 > {
   _id: string;
+  providerPreferenceId?: string | null;
+  providerPaymentId?: string | null;
+  providerStatus?: string | null;
+  checkoutUrl?: string | null;
   preferenceCreationInProgress?: boolean;
   preferenceCreationLeaseExpiresAt?: Date | null;
   refundCommandEventId?: string | null;
@@ -38,7 +47,6 @@ interface PaymentDocument extends Omit<
   refundReason?: string | null;
   refundProcessingToken?: string | null;
   providerRefundId?: string | null;
-  providerPaymentId?: string | null;
   refundFailureCode?: string | null;
 }
 
@@ -90,11 +98,20 @@ export class MongoPaymentRepository implements PaymentRepository {
     ).updateOne(
       {
         _id: paymentId,
-        providerPreferenceId: { $exists: false },
-        $or: [
-          { preferenceCreationInProgress: { $ne: true } },
-          { preferenceCreationLeaseExpiresAt: null },
-          { preferenceCreationLeaseExpiresAt: { $lte: now } },
+        $and: [
+          {
+            $or: [
+              { providerPreferenceId: null },
+              { providerPreferenceId: { $exists: false } },
+            ],
+          },
+          {
+            $or: [
+              { preferenceCreationInProgress: { $ne: true } },
+              { preferenceCreationLeaseExpiresAt: null },
+              { preferenceCreationLeaseExpiresAt: { $lte: now } },
+            ],
+          },
         ],
       },
       {
@@ -428,6 +445,9 @@ export class MongoPaymentRepository implements PaymentRepository {
     return Payment.restore({
       id: _id,
       ...props,
+      providerPreferenceId: props.providerPreferenceId ?? undefined,
+      providerStatus: props.providerStatus ?? undefined,
+      checkoutUrl: props.checkoutUrl ?? undefined,
       refundCommandEventId: props.refundCommandEventId ?? undefined,
       refundCorrelationId: props.refundCorrelationId ?? undefined,
       refundIdempotencyKey: props.refundIdempotencyKey ?? undefined,
