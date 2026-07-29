@@ -15,7 +15,6 @@ import {
   PAYMENT_REPOSITORY,
   PAYMENT_WEBHOOK_EVENT_REPOSITORY,
 } from "../../payment.tokens";
-import { MercadoPagoWebhookDto } from "../dto/mercado-pago-webhook.dto";
 import {
   BILLING_EVENT_PUBLISHER,
   BillingEventPublisher,
@@ -29,8 +28,10 @@ export interface HandleMercadoPagoWebhookInput {
   signature?: string;
   requestId?: string;
   type?: string;
-  queryDataId?: string;
-  payload: MercadoPagoWebhookDto;
+  providerNotificationId?: string;
+  providerPaymentId?: string;
+  action?: string;
+  rawPayload: Record<string, unknown>;
 }
 
 @Injectable()
@@ -53,11 +54,11 @@ export class PaymentWebhookService {
 
     const event = await this.eventRepository.createIfAbsent(
       PaymentWebhookEvent.receive({
-        providerNotificationId: input.payload.id,
-        providerPaymentId: input.payload.data.id,
-        type: input.payload.type,
-        action: input.payload.action,
-        rawPayload: input.payload as unknown as Record<string, unknown>,
+        providerNotificationId: input.providerNotificationId!,
+        providerPaymentId: input.providerPaymentId!,
+        type: "payment",
+        action: input.action!,
+        rawPayload: input.rawPayload,
       }),
     );
 
@@ -83,7 +84,7 @@ export class PaymentWebhookService {
 
     try {
       const providerPayment = await this.paymentProvider.getPayment(
-        input.payload.data.id,
+        input.providerPaymentId!,
       );
       if (!providerPayment.externalReference) {
         throw new DomainException(
@@ -120,8 +121,8 @@ export class PaymentWebhookService {
       ) {
         await this.billingEvents.publishPaymentApproved(
           payment,
-          input.payload.id,
-          input.payload.data.id,
+          input.providerNotificationId!,
+          input.providerPaymentId!,
         );
       }
       if (
@@ -130,8 +131,8 @@ export class PaymentWebhookService {
       ) {
         await this.billingEvents.publishPaymentFailed(
           payment,
-          input.payload.id,
-          input.payload.data.id,
+          input.providerNotificationId!,
+          input.providerPaymentId!,
         );
       }
 
@@ -156,11 +157,9 @@ export class PaymentWebhookService {
   private validateNotification(input: HandleMercadoPagoWebhookInput): void {
     if (
       input.type !== "payment" ||
-      input.payload?.type !== "payment" ||
-      !input.payload.id ||
-      !input.payload.action ||
-      !input.payload.data?.id ||
-      input.queryDataId !== input.payload.data.id
+      !input.providerNotificationId ||
+      !input.providerPaymentId ||
+      !input.action
     ) {
       throw new DomainException(
         "WEBHOOK_INVALID_PAYLOAD",
@@ -171,7 +170,7 @@ export class PaymentWebhookService {
     const validSignature = this.signatureValidator.validate({
       signature: input.signature,
       requestId: input.requestId,
-      dataId: input.queryDataId,
+      dataId: input.providerPaymentId,
     });
     if (!validSignature) {
       throw new DomainException(
