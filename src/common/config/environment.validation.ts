@@ -31,6 +31,10 @@ export class EnvironmentVariables {
 
   @IsOptional()
   @IsString()
+  SWAGGER_BASE_PATH = "";
+
+  @IsOptional()
+  @IsString()
   LOG_LEVEL = "info";
 
   @IsOptional()
