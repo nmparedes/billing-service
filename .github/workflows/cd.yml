@@ -26,7 +26,13 @@ jobs:
       IMAGE_SHA: ghcr.io/${{ github.repository_owner }}/billing-service:${{ github.event.workflow_run.head_sha }}
       IMAGE_CHANNEL: ghcr.io/${{ github.repository_owner }}/billing-service:homologation
       K8S_NAMESPACE: ${{ vars.K8S_NAMESPACE }}
+      MERCADO_PAGO_ENVIRONMENT: ${{ vars.MERCADO_PAGO_ENVIRONMENT }}
+      BILLING_PUBLIC_BASE_URL: ${{ vars.BILLING_PUBLIC_BASE_URL }}
       KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+      BILLING_MONGODB_URI: ${{ secrets.BILLING_MONGODB_URI }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
+      MERCADO_PAGO_TEST_ACCESS_TOKEN: ${{ secrets.MERCADO_PAGO_TEST_ACCESS_TOKEN }}
+      MERCADO_PAGO_TEST_WEBHOOK_SECRET: ${{ secrets.MERCADO_PAGO_TEST_WEBHOOK_SECRET }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,6 +43,12 @@ jobs:
         run: |
           test -n "${K8S_NAMESPACE}" || { echo "K8S_NAMESPACE is required."; exit 1; }
           test -n "${KUBECONFIG_B64}" || { echo "KUBECONFIG_B64 is required."; exit 1; }
+          test -n "${MERCADO_PAGO_ENVIRONMENT}" || { echo "MERCADO_PAGO_ENVIRONMENT is required."; exit 1; }
+          test -n "${BILLING_PUBLIC_BASE_URL}" || { echo "BILLING_PUBLIC_BASE_URL is required."; exit 1; }
+          test -n "${BILLING_MONGODB_URI}" || { echo "BILLING_MONGODB_URI is required."; exit 1; }
+          test -n "${JWT_SECRET}" || { echo "JWT_SECRET is required."; exit 1; }
+          test -n "${MERCADO_PAGO_TEST_ACCESS_TOKEN}" || { echo "MERCADO_PAGO_TEST_ACCESS_TOKEN is required."; exit 1; }
+          test -n "${MERCADO_PAGO_TEST_WEBHOOK_SECRET}" || { echo "MERCADO_PAGO_TEST_WEBHOOK_SECRET is required."; exit 1; }
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -62,6 +74,7 @@ jobs:
       - name: Apply service manifests
         run: |
           kubectl kustomize k8s \
+            | python3 -c 'import os,sys; sys.stdout.write(os.path.expandvars(sys.stdin.read()))' \
             | sed "s|ghcr.io/replace-me/billing-service:latest|${IMAGE_SHA}|g" \
             | kubectl apply -n "${K8S_NAMESPACE}" -f -
 
