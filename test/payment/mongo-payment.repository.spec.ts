@@ -6,6 +6,7 @@ import { MongoPaymentRepository } from "../../src/payment/infrastructure/reposit
 describe("MongoPaymentRepository", () => {
   it("uses the payments collection, a unique budget key and preference claim", async () => {
     const payment = createPayment();
+    const now = new Date("2026-07-29T16:00:00.000Z");
     const document = {
       _id: payment.id,
       budgetId: payment.budgetId,
@@ -37,32 +38,40 @@ describe("MongoPaymentRepository", () => {
     } as unknown as MongoClient;
     const repository = new MongoPaymentRepository(
       client,
-      new ConfigService({ PAYMENT_REFUND_LEASE_MS: 300000 }),
+      new ConfigService({
+        PAYMENT_REFUND_LEASE_MS: 300000,
+        PAYMENT_PREFERENCE_LEASE_MS: 300000,
+      }),
     );
 
-    await expect(repository.findById(payment.id)).resolves.toMatchObject({
-      id: payment.id,
-    });
-    await expect(
-      repository.findByBudgetId(payment.budgetId),
-    ).resolves.toMatchObject({
-      id: payment.id,
-    });
-    await expect(
-      repository.findByExternalReference(payment.externalReference),
-    ).resolves.toMatchObject({
-      id: payment.id,
-    });
-    await expect(repository.createIfAbsent(payment)).resolves.toMatchObject({
-      id: payment.id,
-    });
-    await expect(
-      repository.tryClaimPreferenceCreation(payment.id),
-    ).resolves.toBe(true);
-    await expect(
-      repository.releasePreferenceCreation(payment.id),
-    ).resolves.toBeUndefined();
-    await expect(repository.save(payment)).resolves.toBe(payment);
+    jest.useFakeTimers().setSystemTime(now);
+    try {
+      await expect(repository.findById(payment.id)).resolves.toMatchObject({
+        id: payment.id,
+      });
+      await expect(
+        repository.findByBudgetId(payment.budgetId),
+      ).resolves.toMatchObject({
+        id: payment.id,
+      });
+      await expect(
+        repository.findByExternalReference(payment.externalReference),
+      ).resolves.toMatchObject({
+        id: payment.id,
+      });
+      await expect(repository.createIfAbsent(payment)).resolves.toMatchObject({
+        id: payment.id,
+      });
+      await expect(
+        repository.tryClaimPreferenceCreation(payment.id),
+      ).resolves.toBe(true);
+      await expect(
+        repository.releasePreferenceCreation(payment.id),
+      ).resolves.toBeUndefined();
+      await expect(repository.save(payment)).resolves.toBe(payment);
+    } finally {
+      jest.useRealTimers();
+    }
 
     expect(collection.createIndex).toHaveBeenCalledWith(
       { budgetId: 1 },
@@ -76,9 +85,23 @@ describe("MongoPaymentRepository", () => {
       { upsert: true, returnDocument: "after" },
     );
     expect(collection.updateOne).toHaveBeenCalledWith(
-      expect.objectContaining({ _id: payment.id }),
       expect.objectContaining({
-        $set: expect.objectContaining({ preferenceCreationInProgress: true }),
+        _id: payment.id,
+        providerPreferenceId: { $exists: false },
+        $or: [
+          { preferenceCreationInProgress: { $ne: true } },
+          { preferenceCreationLeaseExpiresAt: null },
+          { preferenceCreationLeaseExpiresAt: { $lte: now } },
+        ],
+      }),
+      expect.objectContaining({
+        $set: expect.objectContaining({
+          preferenceCreationInProgress: true,
+          preferenceCreationLeaseExpiresAt: new Date(
+            now.getTime() + 300000,
+          ),
+          updatedAt: now,
+        }),
       }),
     );
 

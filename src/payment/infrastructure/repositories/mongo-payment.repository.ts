@@ -31,6 +31,7 @@ interface PaymentDocument extends Omit<
 > {
   _id: string;
   preferenceCreationInProgress?: boolean;
+  preferenceCreationLeaseExpiresAt?: Date | null;
   refundCommandEventId?: string | null;
   refundCorrelationId?: string | null;
   refundIdempotencyKey?: string | null;
@@ -79,18 +80,28 @@ export class MongoPaymentRepository implements PaymentRepository {
   }
 
   async tryClaimPreferenceCreation(paymentId: string): Promise<boolean> {
+    const now = new Date();
+    const leaseExpiresAt = new Date(
+      now.getTime() +
+        this.config.get<number>("PAYMENT_PREFERENCE_LEASE_MS", 300000),
+    );
     const result = await (
       await this.collection()
     ).updateOne(
       {
         _id: paymentId,
         providerPreferenceId: { $exists: false },
-        preferenceCreationInProgress: { $ne: true },
+        $or: [
+          { preferenceCreationInProgress: { $ne: true } },
+          { preferenceCreationLeaseExpiresAt: null },
+          { preferenceCreationLeaseExpiresAt: { $lte: now } },
+        ],
       },
       {
         $set: {
           preferenceCreationInProgress: true,
-          updatedAt: new Date(),
+          preferenceCreationLeaseExpiresAt: leaseExpiresAt,
+          updatedAt: now,
         },
       },
     );
@@ -102,7 +113,12 @@ export class MongoPaymentRepository implements PaymentRepository {
       await this.collection()
     ).updateOne(
       { _id: paymentId },
-      { $unset: { preferenceCreationInProgress: "" } },
+      {
+        $unset: {
+          preferenceCreationInProgress: "",
+          preferenceCreationLeaseExpiresAt: "",
+        },
+      },
     );
   }
 
@@ -113,7 +129,10 @@ export class MongoPaymentRepository implements PaymentRepository {
       { _id: payment.id },
       {
         $set: this.toDocument(payment),
-        $unset: { preferenceCreationInProgress: "" },
+        $unset: {
+          preferenceCreationInProgress: "",
+          preferenceCreationLeaseExpiresAt: "",
+        },
       },
     );
     return payment;
@@ -399,8 +418,13 @@ export class MongoPaymentRepository implements PaymentRepository {
 
   private toDomain(document: PaymentDocument): Payment {
     const { _id, ...documentWithoutId } = document;
-    const { preferenceCreationInProgress, ...props } = documentWithoutId;
+    const {
+      preferenceCreationInProgress,
+      preferenceCreationLeaseExpiresAt,
+      ...props
+    } = documentWithoutId;
     void preferenceCreationInProgress;
+    void preferenceCreationLeaseExpiresAt;
     return Payment.restore({
       id: _id,
       ...props,

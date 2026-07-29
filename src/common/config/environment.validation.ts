@@ -95,6 +95,11 @@ export class EnvironmentVariables {
   @Min(60000)
   PAYMENT_REFUND_LEASE_MS = 300000;
 
+  @Transform(({ value }) => Number(value ?? 300000))
+  @IsInt()
+  @Min(60000)
+  PAYMENT_PREFERENCE_LEASE_MS = 300000;
+
   @IsIn(["test", "production"])
   MERCADO_PAGO_ENVIRONMENT!: "test" | "production";
 

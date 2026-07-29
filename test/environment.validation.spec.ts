@@ -13,6 +13,7 @@ describe("validateEnvironment", () => {
     expect(config.METRICS_ENABLED).toBe(true);
     expect(config.CONSUMED_MESSAGE_LEASE_MS).toBe(300000);
     expect(config.PAYMENT_REFUND_LEASE_MS).toBe(300000);
+    expect(config.PAYMENT_PREFERENCE_LEASE_MS).toBe(300000);
   });
 
   it("accepts explicit service settings", () => {
@@ -120,6 +121,12 @@ describe("validateEnvironment", () => {
       validateEnvironment({
         ...paymentEnvironment(),
         PAYMENT_REFUND_LEASE_MS: "59999",
+      }),
+    ).toThrow();
+    expect(() =>
+      validateEnvironment({
+        ...paymentEnvironment(),
+        PAYMENT_PREFERENCE_LEASE_MS: "59999",
       }),
     ).toThrow();
   });
