@@ -127,12 +127,9 @@ describe("PaymentWebhookService", () => {
   });
 
   it("rejects an invalid payload before persisting an event", async () => {
-    const input = validInput();
-    input.queryDataId = "different-provider-payment";
-
-    await expect(service.handle(input)).rejects.toMatchObject({
-      code: "WEBHOOK_INVALID_PAYLOAD",
-    });
+    await expect(
+      service.handle({ ...validInput(), providerPaymentId: undefined }),
+    ).rejects.toMatchObject({ code: "WEBHOOK_INVALID_PAYLOAD" });
     expect(eventRepository.createIfAbsent).not.toHaveBeenCalled();
   });
 
@@ -142,7 +139,7 @@ describe("PaymentWebhookService", () => {
     ).rejects.toMatchObject({ code: "WEBHOOK_SIGNATURE_UNAUTHORIZED" });
 
     await expect(
-      service.handle({ ...validInput(), queryDataId: undefined }),
+      service.handle({ ...validInput(), providerPaymentId: undefined }),
     ).rejects.toMatchObject({ code: "WEBHOOK_INVALID_PAYLOAD" });
     expect(eventRepository.createIfAbsent).not.toHaveBeenCalled();
   });
@@ -298,8 +295,10 @@ function validInput() {
     signature: signatureFor(secret, requestId, providerPaymentId),
     requestId,
     type: "payment",
-    queryDataId: providerPaymentId,
-    payload,
+    providerNotificationId: payload.id,
+    providerPaymentId,
+    action: payload.action,
+    rawPayload: payload as unknown as Record<string, unknown>,
   };
 }
 
@@ -310,7 +309,7 @@ function webhookEvent(): PaymentWebhookEvent {
     providerPaymentId,
     type: "payment",
     action: "payment.updated",
-    rawPayload: validInput().payload as unknown as Record<string, unknown>,
+    rawPayload: validInput().rawPayload,
   });
 }
 
